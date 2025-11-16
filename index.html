@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام التقاط الصور</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        
+        .camera-section {
+            padding: 30px;
+            text-align: center;
+        }
+        
+        #video {
+            width: 100%;
+            max-width: 600px;
+            height: 400px;
+            border-radius: 15px;
+            background: #000;
+            margin: 20px 0;
+        }
+        
+        #canvas {
+            display: none;
+        }
+        
+        .status {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-right: 4px solid #3498db;
+            font-size: 1.1em;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .footer {
+            background: #ecf0f1;
+            padding: 20px;
+            text-align: center;
+            color: #7f8c8d;
+            border-top: 1px solid #bdc3c7;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+            
+            #video {
+                height: 300px;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📷 نظام التقاط الصور</h1>
+            <p>سيتم التقاط صورة تلقائيًا بعد الموافقة على استخدام الكاميرا</p>
+        </div>
+        
+        <div class="camera-section">
+            <div class="status" id="status">
+                <span class="loading"></span>
+                جاري تحضير النظام...
+            </div>
+            
+            <video id="video" autoplay playsinline></video>
+            <canvas id="canvas"></canvas>
+            
+            <div>
+                <button class="btn" id="retryBtn" onclick="retryCamera()" style="display: none;">
+                    🔄 إعادة المحاولة
+                </button>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>© 2024 نظام التقاط الصور - يتم التشغيل عبر GitHub Pages</p>
+        </div>
+    </div>
+
+    <script>
+        // عناصر DOM
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const status = document.getElementById('status');
+        const retryBtn = document.getElementById('retryBtn');
+        const context = canvas.getContext('2d');
+
+        // إعدادات الكاميرا
+        let stream = null;
+
+        // تعيين أبعاد الكانفاس
+        canvas.width = 640;
+        canvas.height = 480;
+
+        // بدء الكاميرا
+        async function startCamera() {
+            try {
+                status.innerHTML = '<span class="loading"></span> جاري طلب الإذن للكاميرا...';
+                
+                // طلب إذن الكاميرا
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                });
+                
+                video.srcObject = stream;
+                status.innerHTML = '<span style="color: #27ae60;">✓</span> تم تفعيل الكاميرا - جاري التقاط الصورة خلال 3 ثواني...';
+                
+                // التقاط الصورة بعد 3 ثواني
+                setTimeout(capturePhoto, 3000);
+                
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                status.innerHTML = '<span style="color: #e74c3c;">✗</span> خطأ في الوصول للكاميرا: ' + error.message;
+                retryBtn.style.display = 'inline-block';
+            }
+        }
+
+        // التقاط الصورة
+        function capturePhoto() {
+            try {
+                status.innerHTML = '<span class="loading"></span> جاري التقاط الصورة...';
+                
+                // رسم الفيديو على الكانفاس
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                status.innerHTML = '<span style="color: #27ae60;">✓</span> تم التقاط الصورة بنجاح!';
+                
+                // إيقاف الكاميرا
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                
+                // هنا يمكنك إضافة إرسال الصورة لو احتجت
+                setTimeout(() => {
+                    status.innerHTML = '<span style="color: #3498db;">📸 تم الانتهاء من العملية</span>';
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error capturing photo:', error);
+                status.innerHTML = '<span style="color: #e74c3c;">✗</span> خطأ في التقاط الصورة';
+                retryBtn.style.display = 'inline-block';
+            }
+        }
+
+        // إعادة المحاولة
+        function retryCamera() {
+            retryBtn.style.display = 'none';
+            startCamera();
+        }
+
+        // بدء التشغيل عند تحميل الصفحة
+        window.addEventListener('load', startCamera);
+
+        // تنظيف الموارد عند مغادرة الصفحة
+        window.addEventListener('beforeunload', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>
